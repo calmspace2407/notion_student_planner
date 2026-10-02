@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pomodoro Timer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Nunito:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --hue: 300;
+  --c: 0.075;
+  --al: 82%;
+  --ald: 80%;
+  --bg: oklch(94% 0.035 var(--hue));
+  --card: oklch(98.5% 0.01 var(--hue));
+  --ink: oklch(30% 0.06 var(--hue));
+  --muted: oklch(52% 0.05 var(--hue));
+  --accent: oklch(var(--al) var(--c) var(--hue));
+  --track: oklch(88% 0.04 var(--hue));
+  --on-accent: oklch(24% 0.06 var(--hue));
+  --serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --sans: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: oklch(22% 0.04 var(--hue));
+    --card: oklch(28% 0.03 var(--hue));
+    --ink: oklch(94% 0.025 var(--hue));
+    --muted: oklch(76% 0.05 var(--hue));
+    --accent: oklch(var(--ald) var(--c) var(--hue));
+    --track: oklch(38% 0.05 var(--hue));
+    --on-accent: oklch(22% 0.05 var(--hue));
+  }
+}
+:root[data-theme="dark"] {
+  --bg: oklch(22% 0.04 var(--hue));
+  --card: oklch(28% 0.03 var(--hue));
+  --ink: oklch(94% 0.025 var(--hue));
+  --muted: oklch(76% 0.05 var(--hue));
+  --accent: oklch(var(--ald) var(--c) var(--hue));
+  --track: oklch(38% 0.05 var(--hue));
+  --on-accent: oklch(22% 0.05 var(--hue));
+}
+:root[data-mode="short"] { --hue: 150; --c: 0.09; --al: 76%; --ald: 78%; }
+:root[data-mode="long"]  { --hue: 25; --c: 0.12; --al: 76%; --ald: 78%; }
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; overflow: hidden; }
+body {
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--bg);
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  transition: background-color .6s;
+}
+.card {
+  width: min(100%, 380px);
+  background: var(--card);
+  border-radius: 28px;
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.tabs {
+  display: flex; gap: 4px; padding: 4px; width: 100%;
+  background: var(--track); border-radius: 999px;
+}
+.tabs button {
+  flex: 1; border: 0; background: transparent; color: var(--muted);
+  font: 700 12px var(--sans); padding: 7px 4px; border-radius: 999px;
+  cursor: pointer; transition: background .25s, color .25s;
+}
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--on-accent); }
+.ring { position: relative; width: min(100%, 210px); aspect-ratio: 1; container-type: inline-size; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 5; }
+.ring .track { stroke: var(--track); }
+.ring .bar {
+  stroke: var(--accent); stroke-linecap: round;
+  transition: stroke-dashoffset .4s linear, stroke .6s;
+}
+.readout {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px;
+}
+.time {
+  font: 600 clamp(16px, 27cqw, 56px)/1 var(--serif);
+  font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+}
+.label { font-weight: 700; font-size: 12px; color: var(--muted); }
+.controls { display: flex; align-items: center; gap: 14px; }
+.main {
+  min-width: 100px; border: 0; cursor: pointer; border-radius: 999px;
+  padding: 10px 20px; font: 700 15px var(--sans);
+  background: var(--accent); color: var(--on-accent);
+  transition: transform .15s, background .6s;
+}
+.main:active { transform: scale(.96); }
+.ghost {
+  width: 38px; height: 38px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--track); color: var(--ink); font-size: 16px;
+  display: grid; place-items: center;
+}
+.dots { display: flex; align-items: center; gap: 8px; }
+.dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--track); transition: background .3s; }
+.dots i.on { background: var(--accent); }
+.dots span { margin-left: 6px; font-size: 12px; font-weight: 700; color: var(--muted); }
+
+.panel { display: contents; }
+.tabs { order: 0; } .ring { order: 1; } .controls { order: 2; } .dots { order: 3; }
+@media (min-width: 420px), (max-height: 300px) {
+  .card { width: min(100%, 500px); flex-direction: row; gap: 18px; padding: 14px 18px; max-height: 100%; }
+  .ring { flex: 0 0 auto; width: min(170px, 44vw, calc(100vh - 36px)); order: 0; }
+  .panel { display: flex; flex-direction: column; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+}
+@media (max-height: 210px) { .dots { display: none; } .panel { gap: 8px; } }
+@media (max-height: 150px) { .tabs { display: none; } }
+@container (max-width: 120px) { .label { display: none; } }
+.tabs button { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+button:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+@media (max-width: 300px) { .card { padding: 14px; border-radius: 26px; } .main { min-width: 104px; padding: 12px 18px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="ring">
+    <svg viewBox="0 0 120 120" aria-hidden="true">
+      <circle class="track" cx="60" cy="60" r="52"/>
+      <circle class="bar" id="bar" cx="60" cy="60" r="52"/>
+    </svg>
+    <div class="readout">
+      <div class="time" id="time" role="timer" aria-live="off">25:00</div>
+      <div class="label" id="label">Time to focus</div>
+    </div>
+  </div>
+
+  <div class="panel">
+  <div class="tabs" role="tablist" aria-label="Timer mode">
+    <button role="tab" data-mode="focus" aria-selected="true">Focus</button>
+    <button role="tab" data-mode="short" aria-selected="false">Short break</button>
+    <button role="tab" data-mode="long" aria-selected="false">Long break</button>
+  </div>
+  <div class="controls">
+    <button class="ghost" id="reset" aria-label="Reset timer" title="Reset">&#8634;</button>
+    <button class="main" id="toggle">Start</button>
+    <button class="ghost" id="skip" aria-label="Skip to next session" title="Skip">&#9197;</button>
+  </div>
+  <div class="dots" id="dots" aria-label="Focus sessions completed">
+    <i></i><i></i><i></i><i></i><span id="count">0 today</span>
+  </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  var MODES = {
+    focus: { mins: 25, label: "Time to focus" },
+    short: { mins: 5,  label: "Take a short break" },
+    long:  { mins: 15, label: "Take a long break" }
+  };
+  var C = 2 * Math.PI * 52;
+  var root = document.documentElement;
+  var bar = document.getElementById("bar");
+  var timeEl = document.getElementById("time");
+  var labelEl = document.getElementById("label");
+  var toggleBtn = document.getElementById("toggle");
+  var dots = document.querySelectorAll("#dots i");
+  var countEl = document.getElementById("count");
+  var tabs = document.querySelectorAll(".tabs button");
+
+  var mode = "focus", total = MODES.focus.mins * 60, left = total;
+  var running = false, endAt = 0, tick = null, cycle = 0, doneToday = 0;
+  var today = new Date().toDateString();
+
+  bar.style.strokeDasharray = C;
+
+  try {
+    var saved = JSON.parse(localStorage.getItem("pomodoro-day") || "null");
+    if (saved && saved.day === today) { doneToday = saved.done || 0; cycle = doneToday % 4; }
+  } catch (e) {}
+
+  function save() {
+    try { localStorage.setItem("pomodoro-day", JSON.stringify({ day: today, done: doneToday })); } catch (e) {}
+  }
+  function fmt(s) {
+    var m = Math.floor(s / 60), r = s % 60;
+    return (m < 10 ? "0" : "") + m + ":" + (r < 10 ? "0" : "") + r;
+  }
+  function render() {
+    timeEl.textContent = fmt(left);
+    bar.style.strokeDashoffset = C * (1 - left / total);
+    toggleBtn.textContent = running ? "Pause" : (left < total ? "Resume" : "Start");
+    document.title = (running ? fmt(left) + " - " : "") + MODES[mode].label;
+    for (var i = 0; i < dots.length; i++) dots[i].className = i < cycle ? "on" : "";
+    countEl.textContent = doneToday + (doneToday === 1 ? " session today" : " sessions today");
+  }
+  function setMode(m) {
+    stop();
+    mode = m; total = left = MODES[m].mins * 60;
+    root.setAttribute("data-mode", m);
+    labelEl.textContent = MODES[m].label;
+    for (var i = 0; i < tabs.length; i++) tabs[i].setAttribute("aria-selected", tabs[i].dataset.mode === m);
+    render();
+  }
+  function chime() {
+    try {
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [660, 880, 1100].forEach(function (f, i) {
+        var o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + i * 0.22;
+        o.type = "sine"; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.18, t + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+        o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 0.65);
+      });
+    } catch (e) {}
+  }
+  function next() {
+    if (mode === "focus") {
+      doneToday++; cycle++; save();
+      if (cycle >= 4) { setMode("long"); cycle = 4; } else { setMode("short"); }
+    } else {
+      if (mode === "long") cycle = 0;
+      setMode("focus");
+    }
+    render();
+  }
+  function finish() { stop(); left = 0; render(); chime(); setTimeout(next, 900); }
+  function loop() {
+    left = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+    render();
+    if (left <= 0) finish();
+  }
+  function start() {
+    if (running) return;
+    running = true; endAt = Date.now() + left * 1000;
+    tick = setInterval(loop, 250); render();
+  }
+  function stop() { running = false; clearInterval(tick); }
+
+  toggleBtn.addEventListener("click", function () { running ? (stop(), render()) : start(); });
+  document.getElementById("reset").addEventListener("click", function () { stop(); left = total; render(); });
+  document.getElementById("skip").addEventListener("click", function () { stop(); next(); });
+  tabs.forEach(function (t) { t.addEventListener("click", function () { setMode(t.dataset.mode); }); });
+  document.addEventListener("keydown", function (e) {
+    if (e.code === "Space" && e.target.tagName !== "BUTTON") { e.preventDefault(); toggleBtn.click(); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
